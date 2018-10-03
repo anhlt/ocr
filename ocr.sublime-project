@@ -1,0 +1,12 @@
+{
+	"folders":
+	[
+		{
+			"path": "."
+		}
+	],
+	"settings":
+	{
+		"python_interpreter": "tcp://localhost:8899?pathmap=/home/anh/workspace/OCR,/data"
+	}
+}
