@@ -18,6 +18,7 @@ sftp-config.json
 
 ###Python###
 
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -66,6 +67,8 @@ coverage.xml
 *.cover
 .hypothesis/
 
+.pytest_cache/
+
 # Translations
 *.mo
 *.pot
@@ -75,6 +78,7 @@ coverage.xml
 .static_storage/
 .media/
 local_settings.py
+db.sqlite3
 
 # Flask stuff:
 instance/
@@ -129,3 +133,4 @@ venv.bak/
 # Temporary data
 .ipynb_checkpoints/
 data/*
+
