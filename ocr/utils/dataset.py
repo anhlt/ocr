@@ -2,6 +2,7 @@ from torch.utils.data.dataset import Dataset
 import os
 import json
 from PIL import Image
+from torchvision import transforms
 
 
 class OCRDataset(Dataset):
@@ -20,6 +21,12 @@ class OCRDataset(Dataset):
 
         img = Image.open(os.path.join(self.root, image_name)).convert('RGB')
         if self.transform is not None:
+            img = self.transform(img)
+        else:
+            self.transform = transforms.Compose([
+                transforms.Resize(600),
+                transforms.ToTensor()
+            ])
             img = self.transform(img)
 
         if self.target_transform is not None:
