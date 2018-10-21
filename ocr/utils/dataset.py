@@ -3,6 +3,14 @@ import os
 import json
 from PIL import Image
 from torchvision import transforms
+import logging
+import numpy as np
+import torch
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+SOS_token = 0
+EOS_token = 1
 
 
 class OCRDataset(Dataset):
@@ -24,7 +32,7 @@ class OCRDataset(Dataset):
             img = self.transform(img)
         else:
             self.transform = transforms.Compose([
-                transforms.Resize(600),
+                transforms.Resize(300),
                 transforms.ToTensor()
             ])
             img = self.transform(img)
@@ -36,3 +44,13 @@ class OCRDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
+
+
+def indexesFromSentence(lang, sentence):
+    return [lang.char2index[char] for char in sentence]
+
+
+def tensorFromSentence(lang, sentence):
+    indexes = indexesFromSentence(lang, sentence)
+    indexes.append(EOS_token)
+    return torch.tensor(np.array(indexes), dtype=torch.long).view(-1, 1)

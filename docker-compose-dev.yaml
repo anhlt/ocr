@@ -15,8 +15,6 @@ services:
         working_dir: /data
         tty: true
         command: jupyter notebook --ip=0.0.0.0 --port=8889 --NotebookApp.password='sha1:4018b457b8a9:84c65a176a549c58609c3cf38fa50b4b1b12b808'
-        links:
-            - "crayon"
     anaconda:
         image: "tuananhbk/mlpractice:gpu" 
         ports:
@@ -29,7 +27,3 @@ services:
         user: root
         entrypoint: /opt/anaconda/anaconda_server/docker/start python 8899 docker /opt/anaconda
         tty: true
-    crayon:
-        image: "alband/crayon"
-        ports:
-            - 8888:8888
