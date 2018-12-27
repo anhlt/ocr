@@ -1,12 +1,26 @@
 {
+	"build_systems":
+	[
+		{
+			"file_regex": "^[ ]*File \"(...*?)\", line ([0-9]*)",
+			"name": "Docker Anaconda Python Builder",
+			"selector": "source.python",
+			"shell_cmd": "docker-compose -f \"${folder}/docker-compose-dev.yaml\" run python nosetests"
+		}
+	],
 	"folders":
 	[
 		{
+			"folder_exclude_patterns":
+			[
+				"ocr/__pycache__",
+				"ocr/utils/__pycache__"
+			],
 			"path": "."
 		}
 	],
 	"settings":
 	{
-		"python_interpreter": "tcp://localhost:8899?pathmap=/home/anh/workspace/OCR,/data"
+		"python_interpreter": "tcp://localhost:8899?pathmap=\"$folder\",/data"
 	}
 }
