@@ -3,9 +3,9 @@ services:
     python:
         build:
             context: .
-            dockerfile: Dockerfile
+            dockerfile: ./docker/Dockerfile-cpu
         container_name : ocr
-        image: "tuananhbk/ocr:gpu"
+        image: "tuananhbk/ocr:cpu"
         shm_size: '10gb'
         ports:
             - "8889:8889"
@@ -20,7 +20,7 @@ services:
         ports:
             - "8899:8899"
         volumes:
-            - /home/anh/.config/sublime-text-3/Packages/Anaconda:/opt/anaconda
+            - /Users/anhlt/Library/Application Support/Sublime Text 3/Packages/Anaconda:/opt/anaconda
             - ".:/data" 
         depends_on:
             - python
