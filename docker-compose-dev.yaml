@@ -19,7 +19,7 @@ services:
         ports:
             - "8899:8899"
         volumes:
-            - /Users/anhlt/Library/Application Support/Sublime Text 3/Packages/Anaconda:/opt/anaconda
+            - ${SUBL_PACKAGE_PATH}/Packages/Anaconda:/opt/anaconda
             - ".:/data"
         depends_on:
             - python
