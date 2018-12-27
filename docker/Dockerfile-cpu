@@ -26,11 +26,9 @@ RUN /opt/conda/bin/conda install conda-build && \
 ENV PATH /opt/conda/envs/pytorch/bin:$PATH
 RUN conda install -y --name pytorch pytorch-cpu torchvision-cpu -c pytorch
 RUN conda install -y --name pytorch seaborn opencv cython
-RUN conda install -y --name pytorch -c anaconda protobuf
 
 # This must be done before pip so that requirements.txt is available
 WORKDIR /opt/pytorch
-
 
 WORKDIR /tmp/
 
@@ -40,5 +38,4 @@ RUN useradd -ms /bin/bash anh
 
 ADD ./requirements.txt /tmp/requirements.txt
 WORKDIR /tmp/
-RUN pip install requests
 RUN pip install -r requirements.txt

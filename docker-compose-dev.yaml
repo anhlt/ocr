@@ -6,7 +6,6 @@ services:
             dockerfile: ./docker/Dockerfile-cpu
         container_name : ocr
         image: "tuananhbk/ocr:cpu"
-        shm_size: '10gb'
         ports:
             - "8889:8889"
         volumes:
@@ -16,12 +15,12 @@ services:
         tty: true
         command: jupyter notebook --ip=0.0.0.0 --port=8889 --NotebookApp.password='sha1:4018b457b8a9:84c65a176a549c58609c3cf38fa50b4b1b12b808'
     anaconda:
-        image: "tuananhbk/mlpractice:gpu" 
+        image: "tuananhbk/ocr:cpu" 
         ports:
             - "8899:8899"
         volumes:
             - /Users/anhlt/Library/Application Support/Sublime Text 3/Packages/Anaconda:/opt/anaconda
-            - ".:/data" 
+            - ".:/data"
         depends_on:
             - python
         user: root

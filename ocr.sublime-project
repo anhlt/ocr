@@ -13,7 +13,8 @@
 		{
 			"folder_exclude_patterns":
 			[
-				"ocr/__pycache__"
+				"ocr/__pycache__",
+				"ocr/utils/__pycache__"
 			],
 			"path": "."
 		}
