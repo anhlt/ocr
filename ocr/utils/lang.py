@@ -1,3 +1,5 @@
+import torch
+
 
 class Lang:
     def __init__(self):
@@ -18,3 +20,14 @@ class Lang:
             self.n_characters += 1
         else:
             self.char2count[character] += 1
+
+    @property
+    def weights(self):
+        weights = torch.ones((len(self.index2char), 1))
+        sum_count = 0
+        for char, count in self.char2count.items():
+            sum_count = sum_count + count
+            weights[self.char2index[char]] = count
+
+        weights = (weights / sum_count)
+        return weights

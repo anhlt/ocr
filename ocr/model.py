@@ -63,10 +63,10 @@ class Decoder(nn.Module):
         return torch.zeros(1, 1, self.hidden_size)
 
 
-MAX_LENGHT = 100
+MAX_LENGHT = 50
 
 
-class AttentionDecoder(object):
+class AttentionDecoder(nn.Module):
     """docstring for AttentionDecoder"""
 
     def __init__(self, hidden_size, output_size, dropout_p=0.1, max_length=MAX_LENGHT):
@@ -77,7 +77,7 @@ class AttentionDecoder(object):
         self.max_length = max_length
         self.embedding = nn.Embedding(self.output_size, self.hidden_size)
         self.attn = nn.Linear(self.hidden_size * 2, self.max_length)
-        self.attn_combine = nn.Linear(self.hidden_size * 2, self.max_length)
+        self.attn_combine = nn.Linear(self.hidden_size * 2, self.hidden_size)
         self.dropout = nn.Dropout(self.dropout_p)
         self.gru = nn.GRU(self.hidden_size, self.hidden_size)
         self.out = nn.Linear(self.hidden_size, self.output_size)
@@ -124,7 +124,6 @@ class Model(nn.Module):
     def forward(self, input_tensor, target_tensor):
         assert(input_tensor.shape[0] == 1)
         loss = 0
-        criterion = nn.NLLLoss()
         feature_map = self.base_model(input_tensor)
         feature_height, feature_width = feature_map.shape[2], feature_map.shape[3]
         all_anchors = self._create_anchors(
@@ -148,35 +147,32 @@ class Model(nn.Module):
         self.use_teacher_forcing = True if random.random() < self.teacher_forcing_ratio else False
 
         decoder_hidden = encoder_hidden
+        decoded_words = []
+        weights = self.lang.weights.to(self.device)
         if self.use_teacher_forcing:
             # Teacher forcing: Feed the target as the next input
             for di in range(target_length):
-                if(target_tensor[di].item() == self.lang.char2index[SPACE_CHAR]):
-                    p = 1. / 10
-                else:
-                    p = 1
                 decoder_output, decoder_hidden = self.decoder(
                     decoder_input, decoder_hidden)
-                loss += criterion(decoder_output, target_tensor[di]) * p
+                loss += F.nll_loss(decoder_output, target_tensor[di], weights)
+                topv, topi = decoder_output.topk(1)
+                decoded_words.append(self.lang.index2char[topi.item()])
                 decoder_input = target_tensor[di]  # Teacher forcing
 
         else:
             for di in range(target_length):
-                if(target_tensor[di].item() == self.lang.char2index[SPACE_CHAR]):
-                    p = 1. / 10
-                else:
-                    p = 1
                 decoder_output, decoder_hidden = self.decoder(
                     decoder_input, decoder_hidden)
                 topv, topi = decoder_output.topk(1)
                 decoder_input = topi.squeeze().detach()  # detach from history as input
-                loss += criterion(decoder_output, target_tensor[di]) * p
+                loss += F.nll_loss(decoder_output, target_tensor[di], weights)
+                decoded_words.append(self.lang.index2char[topi.item()])
 
                 if decoder_input.item() == EOS_token:
                     break
 
         # print(loss, target_length, input_length)
-        return loss / target_length
+        return loss, decoded_words
 
     def _create_anchors(self, feature_height, feature_width, feat_stride=16.):
         shift_x = np.arange(0, feature_width, 5) * feat_stride
@@ -233,7 +229,7 @@ class Model(nn.Module):
             return decoded_words
 
 
-class AttnModel(object):
+class AttnModel(nn.Module):
     """docstring for AttnModel"""
 
     def __init__(self, encoder_input_size, hidden_size, decoder_output_size, lang=None, teacher_forcing_ratio=0.8, device="cuda"):
@@ -242,10 +238,12 @@ class AttnModel(object):
         self.encoder_hidden_size = hidden_size
         self.decoder_output_size = decoder_output_size
         self.decoder_hidden_size = hidden_size
+        self.lang = lang
+
         self.device = torch.device(device)
 
         self.base_model = base_model().to(self.device)
-        self.roi_pool = ROIPool((7, 7), 1.0 / 16)
+        self.roi_pool = ROIPool((10, 10), 1.0 / 16)
 
         self.encoder = Encoder(self.encoder_input_size,
                                self.encoder_hidden_size).to(self.device)
@@ -260,6 +258,7 @@ class AttnModel(object):
         loss = 0
         criterion = nn.NLLLoss()
         feature_map = self.base_model(input_tensor)
+
         feature_height, feature_width = feature_map.shape[2], feature_map.shape[3]
         all_anchors = self._create_anchors(
             feature_height, feature_width, feat_stride=16.)
@@ -276,13 +275,15 @@ class AttnModel(object):
             MAX_LENGHT, self.encoder_hidden_size, device=self.device)
 
         for ei in range(input_length):
-            encoder_output, encoder_hidden = self.encoder(input_tensor[ei],
+            encoder_output, encoder_hidden = self.encoder(rois_features[ei],
                                                           encoder_hidden)
             encoder_outputs[ei] += encoder_output[0, 0]
 
         decoder_input = torch.tensor([[SOS_token]], device=self.device)
         decoder_hidden = encoder_hidden
         use_teacher_forcing = True if random.random() < self.teacher_forcing_ratio else False
+        decoded_words = []
+
 
         if use_teacher_forcing:
             # Teacher forcing: Feed the target as the next input
@@ -291,6 +292,8 @@ class AttnModel(object):
                     decoder_input, decoder_hidden, encoder_outputs)
                 loss += criterion(decoder_output, target_tensor[di])
                 decoder_input = target_tensor[di]  # Teacher forcing
+                topv, topi = decoder_output.topk(1)
+                decoded_words.append(self.lang.index2char[topi.item()])
 
         else:
             # Without teacher forcing: use its own predictions as the next input
@@ -299,14 +302,14 @@ class AttnModel(object):
                     decoder_input, decoder_hidden, encoder_outputs)
                 topv, topi = decoder_output.topk(1)
                 decoder_input = topi.squeeze().detach()  # detach from history as input
-
+                decoded_words.append(self.lang.index2char[topi.item()])
                 loss += criterion(decoder_output, target_tensor[di])
                 if decoder_input.item() == EOS_token:
                     break
 
-        return loss / target_length
+        return loss / target_length , decoded_words, use_teacher_forcing
 
-    def _create_anchors(self, feature_height, feature_width, feat_stride=16., step=5):
+    def _create_anchors(self, feature_height, feature_width, feat_stride=16., step=12):
         shift_x = np.arange(0, feature_width, step) * feat_stride
         shift_y = np.array([0] * shift_x.shape[0])
 
@@ -322,3 +325,49 @@ class AttnModel(object):
         all_anchors = np.hstack((index_column, all_anchors))
 
         return all_anchors
+
+
+    def evaluate(self, input_tensor, max_length=MAX_LENGHT):
+        with torch.no_grad():
+            feature_map = self.base_model(input_tensor)
+            feature_height, feature_width = feature_map.shape[2], feature_map.shape[3]
+            all_anchors = self._create_anchors(
+                feature_height, feature_width, feat_stride=16.)
+
+            all_anchors = np_to_tensor(all_anchors, device=self.device)
+            rois_features = self.roi_pool(feature_map, all_anchors)
+            print(rois_features.shape)
+            input_length = rois_features.shape[0]
+            encoder_hidden = self.encoder.init_hidden().to(self.device)
+
+            encoder_outputs = torch.zeros(
+                MAX_LENGHT, self.encoder_hidden_size, device=self.device)
+
+            for ei in range(input_length):
+                encoder_output, encoder_hidden = self.encoder(
+                    rois_features[ei], encoder_hidden)
+
+                encoder_outputs[ei] += encoder_output[0, 0]
+
+
+            decoder_input = torch.tensor(
+                [[SOS_token]], device=self.device)  # SOS
+
+            decoder_hidden = encoder_hidden
+
+            decoded_words = []
+
+            for di in range(max_length):
+                decoder_output, decoder_hidden, decoder_attention = self.attn_decoder(
+                    decoder_input, decoder_hidden, encoder_outputs)
+                topv, topi = decoder_output.data.topk(1)
+                if topi.item() == EOS_token:
+                    decoded_words.append('<EOS>')
+                    break
+                else:
+                    decoded_words.append(self.lang.index2char[topi.item()])
+
+                decoder_input = topi.squeeze().detach()
+
+            return decoded_words
+
